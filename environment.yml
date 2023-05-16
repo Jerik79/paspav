@@ -1,0 +1,8 @@
+name: paspav
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy=1.23
+  - matplotlib=3.7
+  - click=8.1
