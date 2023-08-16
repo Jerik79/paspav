@@ -144,8 +144,10 @@ class PaSpaV:
         self._init_figure()
 
     def _init_figure(self):
-        self._tick_formatter = FormatStrFormatter("%.2f")
-        self._fig = plt.figure("PaSpaV", figsize=(12.8, 7.2))
+        plt.rcParams.update({"font.size": 14, "mathtext.fontset": "cm"})
+        self._tick_formatter = FormatStrFormatter("$%.2f$")
+
+        self._fig = plt.figure("PaSpaV", figsize=(19.2, 10.8))
         plot_subfig, ui_subfig = self._fig.subfigures(1, 2, width_ratios=(2, 1))
         plot_grid_spec = GridSpec(2, 1, figure=plot_subfig, height_ratios=(15, 1), hspace=0.5)
         ui_grid_spec = GridSpec(3, 3, figure=ui_subfig, height_ratios=(2, 4, 2), hspace=0.375, width_ratios=(1, 1, 6))
@@ -160,7 +162,7 @@ class PaSpaV:
 
         self._contour = None
         self._colorbar = Colorbar(
-            ax=plot_subfig.add_subplot(plot_grid_spec[1], title="height$(x_1, x_2)$"),
+            ax=plot_subfig.add_subplot(plot_grid_spec[1], title="$\mathrm{height}_{\| \cdot \|}(x_1, x_2)$"),
             mappable=ScalarMappable(),
             orientation="horizontal"
         )
@@ -227,7 +229,7 @@ class PaSpaV:
 
         supported_norms = Norm.supported_enum_values(self._curve_dimension)
         self._norm_radio_buttons = RadioButtons(
-            ax=ui_subfig.add_subplot(ui_grid_spec[1, 2], title="Norm"),
+            ax=ui_subfig.add_subplot(ui_grid_spec[1, 2], title="Norm $\| \cdot \|$"),
             labels=supported_norms,
             active=supported_norms.index(self._config.norm.value),
             label_props={"fontsize": ["large"]}
@@ -293,7 +295,7 @@ class PaSpaV:
 
         self._contour = self._contour_ax.contourf(
             self._x1_param_samples, self._x2_param_samples, self._height_grid,
-            self._config.levels, cmap="YlOrRd_r"
+            self._config.levels, cmap="inferno_r"
         )
         self._contour_ax.set_xbound(self._x1_param_samples[0], self._x1_param_samples[-1])
         self._contour_ax.set_ybound(self._x2_param_samples[0], self._x2_param_samples[-1])
