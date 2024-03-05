@@ -17,6 +17,12 @@ from matplotlib.ticker import FormatStrFormatter, LinearLocator
 from matplotlib.widgets import Button, RadioButtons, Slider
 
 
+class ComputationApproach(StrEnum):
+    LT = "Linear transformations"
+    EP = "Explicit projections"
+    IP = "Implicit projections"
+
+
 class Norm(StrEnum):
     P_1 = "1-norm"
     INNER_K_GON = "Inner $k$-gon-norm"
@@ -39,17 +45,45 @@ class Norm(StrEnum):
         return np.linalg.norm(vectors, ord=p, axis=-1)
 
     @staticmethod
-    def k_gon_norm(vectors: np.ndarray, k: int, outer: bool, project_vectors: bool) -> np.ndarray:
+    def k_gon_norm(vectors: np.ndarray, k: int, outer: bool, approach: ComputationApproach) -> np.ndarray:
         if k < 3 or k % 2 != 0:
             raise ValueError("The number k of polygon vertices must be an even integer greater than 2.")
 
-        apothem = 1.0 if outer else np.cos(np.pi / k)
+        match approach:
+            case ComputationApproach.LT:
+                return Norm._k_gon_norm_via_transformations(vectors, k, outer)
+            case ComputationApproach.EP:
+                return Norm._k_gon_norm_via_projections(vectors, k, outer, False)
+            case ComputationApproach.IP:
+                return Norm._k_gon_norm_via_projections(vectors, k, outer, True)
+
+    @staticmethod
+    def _k_gon_norm_via_transformations(vectors: np.ndarray, k: int, outer: bool) -> np.ndarray:
+        sector_angle = 2 * np.pi / k
+        if outer:
+            cos_value, sin_value = np.cos(sector_angle / 2), np.sin(sector_angle / 2)
+            isometry = cos_value * np.array([[cos_value, -sin_value], [sin_value, cos_value]])
+            vectors = np.tensordot(vectors, isometry, axes=(-1, -1))
+
         angles = np.arctan2(vectors[..., 1], vectors[..., 0])
+        upper_angles = sector_angle * np.ceil(angles / sector_angle)
+        lower_angles = upper_angles - sector_angle
 
+        summands1 = (np.sin(upper_angles) - np.sin(lower_angles)) * vectors[..., 0]
+        summands2 = (np.cos(lower_angles) - np.cos(upper_angles)) * vectors[..., 1]
+
+        return (summands1 + summands2) / np.sin(sector_angle)
+
+    @staticmethod
+    def _k_gon_norm_via_projections(vectors: np.ndarray, k: int, outer: bool, implicit: bool) -> np.ndarray:
+        sector_angle = 2 * np.pi / k
+        apothem = 1.0 if outer else np.cos(sector_angle / 2)
+
+        angles = np.arctan2(vectors[..., 1], vectors[..., 0])
         term1, term2 = int(outer) / 2, int(not outer) / 2
-        angle_offsets = (2 * np.pi / k) * (np.floor((k * angles) / (2 * np.pi) + term1) + term2)
+        angle_offsets = sector_angle * (np.floor(angles / sector_angle + term1) + term2)
 
-        if not project_vectors:
+        if implicit:
             norm_values = np.linalg.norm(vectors, ord=2, axis=-1)
             projected_norm_values = apothem / np.cos(angles - angle_offsets)    # Note: Divide by 0 can't happen here.
         else:
@@ -68,11 +102,11 @@ class Norm(StrEnum):
 
 @dataclass
 class Config:
-    levels: int
-    k: int
     norm: Norm
+    approach: ComputationApproach
+    k: int
+    levels: int
     euclidean_arc_lengths: bool
-    project_vectors: bool
 
     def apply_norm(self, vectors: np.ndarray) -> np.ndarray:
         match self.norm:
@@ -83,9 +117,9 @@ class Config:
             case Norm.P_INF:
                 return Norm.p_norm(vectors, np.inf)
             case Norm.INNER_K_GON:
-                return Norm.k_gon_norm(vectors, self.k, False, self.project_vectors)
+                return Norm.k_gon_norm(vectors, self.k, False, self.approach)
             case Norm.OUTER_K_GON:
-                return Norm.k_gon_norm(vectors, self.k, True, self.project_vectors)
+                return Norm.k_gon_norm(vectors, self.k, True, self.approach)
 
 
 class PaSpaV:
@@ -316,32 +350,31 @@ class PaSpaV:
 
 @click.group(context_settings={"show_default": True})
 @click.option(
-    "--levels", "-l", type=click.IntRange(PaSpaV.MIN_LEVELS, PaSpaV.MAX_LEVELS), default=50,
-    help="Number of levels for contour plot drawings."
+    "--norm", "-n", type=click.Choice([norm.name for norm in Norm], case_sensitive=False),
+    default=Norm.P_1.name, help="Norm used for height calculations."
+)
+@click.option(
+    "--approach", "-a", type=click.Choice([approach.name for approach in ComputationApproach], case_sensitive=False),
+    default=ComputationApproach.LT.name, help="Approach used to compute polygonal norms (k-gon-norms). " \
+    "The supported approaches are based on linear transformations and on explicit or implicit projections."
 )
 @click.option(
     "-k", type=click.IntRange(PaSpaV.MIN_K, PaSpaV.MAX_K), default=10,
     help="Number of vertices for polygonal norms (k-gon-norms)."
 )
 @click.option(
-    "--norm", "-n", type=click.Choice([norm.name.lower() for norm in Norm], case_sensitive=False),
-    default=Norm.P_1.name.lower(), help="Norm used for height calculations."
+    "--levels", "-l", type=click.IntRange(PaSpaV.MIN_LEVELS, PaSpaV.MAX_LEVELS), default=50,
+    help="Number of levels for contour plot drawings."
 )
 @click.option(
     "--euclidean-arc-lengths/--no-euclidean-arc-lengths", "-e/-ne", default=False,
     help="If true, arc lengths are always measured using the Euclidean 2-norm. " \
-         "If false, they depend on the same norm used for height calculations."
-)
-@click.option(
-    "--project-vectors/--no-project-vectors", "-p/-np", default=False,
-    help="For polygonal norms (k-gon-norms): " \
-         "If true, vectors are projected onto the unit polygon during norm computations. " \
-         "If false, a shortcut is used that doesn't require explicit projection."
+    "If false, they depend on the norm that is used for height calculations."
 )
 @click.pass_context
-def paspav(ctx: click.Context, levels: int, k: int, norm: str, euclidean_arc_lengths: bool, project_vectors: bool):
+def paspav(ctx: click.Context, norm: str, approach: str, k: int, levels: int, euclidean_arc_lengths: bool):
     """PaSpaV: Parameter Space Visualiser for polygonal curves."""
-    ctx.obj = Config(levels, k, Norm[norm.upper()], euclidean_arc_lengths, project_vectors)
+    ctx.obj = Config(Norm[norm], ComputationApproach[approach], k, levels, euclidean_arc_lengths)
 
 @paspav.command()
 @click.option(
