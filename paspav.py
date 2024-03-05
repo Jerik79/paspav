@@ -34,9 +34,9 @@ class Norm(StrEnum):
     def supported_enum_values(cls, dimension: int) -> list[str]:
         if dimension < 1:
             raise ValueError("The dimension must be at least 1.")
-        
+
         return [norm.value for norm in cls if dimension == 2 or norm.name.startswith("P")]
-    
+
     @staticmethod
     def p_norm(vectors: np.ndarray, p: int | float) -> np.ndarray:
         if p < 1:
@@ -139,7 +139,7 @@ class PaSpaV:
         array_shape = (segments + 1, dimension)
 
         return np.random.uniform(-bound, bound, array_shape)
-    
+
     @staticmethod
     def load_curve(filepath: str) -> np.ndarray:
         return np.loadtxt(filepath, delimiter=",", dtype=np.float64)
@@ -157,7 +157,7 @@ class PaSpaV:
             self._curve_dimension = 1
             self._curve1_vertices = curve1_vertices[:, np.newaxis]
             self._curve2_vertices = curve2_vertices[:, np.newaxis]
-        
+
         self._curve1_segments = len(self._curve1_vertices) - 1
         self._curve2_segments = len(self._curve2_vertices) - 1
         self._config = replace(
