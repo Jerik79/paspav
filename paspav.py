@@ -1,4 +1,5 @@
 from dataclasses import dataclass, replace
+from decimal import Decimal, ROUND_DOWN, ROUND_UP
 from enum import StrEnum
 from typing import Callable
 
@@ -9,6 +10,7 @@ from tkinter import filedialog
 import matplotlib.pyplot as plt
 from matplotlib.cm import ScalarMappable
 from matplotlib.colorbar import Colorbar
+from matplotlib.colors import Normalize
 from matplotlib.figure import SubFigure
 from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 from matplotlib.ticker import FormatStrFormatter, LinearLocator
@@ -278,7 +280,7 @@ class PaSpaV:
         set_ticks([0.0, boundary_values[-1]], minor=False)
         set_ticks(boundary_values[1:-1], minor=True)
 
-        sample_numbers = np.maximum((10 * lengths).astype(int), 10)
+        sample_numbers = np.maximum((20 * lengths).astype(int), 20)
         def calculate_samples(array: np.ndarray) -> np.ndarray:
             segment_samples = []
             for i in range(1, len(lengths)):
@@ -293,12 +295,18 @@ class PaSpaV:
             while self._contour.collections:
                 self._contour.collections.pop().remove()
 
+        height_lb, height_ub = self._get_height_bounds()
         self._contour = self._contour_ax.contourf(
             self._x1_param_samples, self._x2_param_samples, self._height_grid,
-            self._config.levels, cmap="inferno_r"
+            self._config.levels, norm=Normalize(height_lb, height_ub), cmap="inferno_r"
         )
         self._contour_ax.set_xbound(self._x1_param_samples[0], self._x1_param_samples[-1])
         self._contour_ax.set_ybound(self._x2_param_samples[0], self._x2_param_samples[-1])
+
+    def _get_height_bounds(self, exp=Decimal("0.1")) -> tuple[float, float]:
+        lower_bound = Decimal(np.min(self._height_grid)).quantize(exp, rounding=ROUND_DOWN)
+        upper_bound = Decimal(np.max(self._height_grid)).quantize(exp, rounding=ROUND_UP)
+        return float(lower_bound), float(upper_bound)
 
     def _adjust_colorbar(self):
         self._colorbar.update_normal(ScalarMappable(norm=self._contour.norm, cmap=self._contour.get_cmap()))
