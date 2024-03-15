@@ -24,9 +24,9 @@ class ComputationApproach(StrEnum):
 
 
 class Norm(StrEnum):
-    P_1 = "1-norm"
+    P_1 = "$1$-norm"
     INNER_K_GON = "Inner $k$-gon-norm"
-    P_2 = "2-norm"
+    P_2 = "$2$-norm"
     OUTER_K_GON = "Outer $k$-gon-norm"
     P_INF = "$\infty$-norm"
 
@@ -108,6 +108,19 @@ class Config:
     levels: int
     euclidean_arc_lengths: bool
 
+    def get_norm_symbol(self) -> str:
+        match self.norm:
+            case Norm.P_1:
+                return "\| \cdot \|_{1}"
+            case Norm.P_2:
+                return "\| \cdot \|_{2}"
+            case Norm.P_INF:
+                return "\| \cdot \|_{\infty}"
+            case Norm.INNER_K_GON:
+                return f"\| \cdot \|_{{ {self.k} \u2010 \mathrm{{gon}} }}^{{\mathrm{{inner}}}}"
+            case Norm.OUTER_K_GON:
+                return f"\| \cdot \|_{{ {self.k} \u2010 \mathrm{{gon}} }}^{{\mathrm{{outer}}}}"
+
     def apply_norm(self, vectors: np.ndarray) -> np.ndarray:
         match self.norm:
             case Norm.P_1:
@@ -130,6 +143,12 @@ class PaSpaV:
     MAX_SEGMENTS = 25
     MAX_DIMENSION = 10
 
+    MIN_FIGWIDTH = 2.0
+    MAX_FIGWIDTH = 8.3
+    MIN_DPI = 100.0
+    MAX_DPI = 1000.0
+    MAX_PADDING = 20.0
+
     @staticmethod
     def random_curve(segments: int, dimension: int) -> np.ndarray:
         if segments < 1 or dimension < 1:
@@ -143,9 +162,6 @@ class PaSpaV:
     @staticmethod
     def load_curve(filepath: str) -> np.ndarray:
         return np.loadtxt(filepath, delimiter=",", dtype=np.float64)
-
-    def show(self):
-        plt.show()
 
     def __init__(self, curve1_vertices: np.ndarray, curve2_vertices: np.ndarray, config: Config):
         self._curve_dimension = None
@@ -177,36 +193,70 @@ class PaSpaV:
         elif self._config.norm.value not in Norm.supported_enum_values(self._curve_dimension):
             raise ValueError(f"The norm '{self._config.norm.name}' isn't supported in {self._curve_dimension}D.")
 
-        self._init_figure()
-
-    def _init_figure(self):
-        plt.rcParams.update({"font.size": 14, "mathtext.fontset": "cm"})
+        self._contour = None
         self._tick_formatter = FormatStrFormatter("$%.2f$")
 
+    def show(self):
+        plt.rcParams.update({"font.size": 14, "mathtext.fontset": "cm"})
         self._fig = plt.figure("PaSpaV", figsize=(19.2, 10.8))
-        plot_subfig, ui_subfig = self._fig.subfigures(1, 2, width_ratios=(2, 1))
-        plot_grid_spec = GridSpec(2, 1, figure=plot_subfig, height_ratios=(15, 1), hspace=0.5)
-        ui_grid_spec = GridSpec(3, 3, figure=ui_subfig, height_ratios=(2, 4, 2), hspace=0.375, width_ratios=(1, 1, 6))
 
-        self._contour_ax = plot_subfig.add_subplot(plot_grid_spec[0], title="Parameter Space")
+        plot_subfig, ui_subfig = self._fig.subfigures(1, 2, width_ratios=(2, 1))
+        plot_subfig.subplots_adjust(hspace=0.5)
+
+        self._contour_ax, colorbar_ax = plot_subfig.subplots(2, 1, height_ratios=(15, 1))
+        self._colorbar = Colorbar(ax=colorbar_ax, mappable=ScalarMappable(), orientation="horizontal")
+        self._adjust_all()
+
+        padding = 10.0
+        colorbar_ax.set_title("$\mathrm{height}_{\| \cdot \|}(x_1, x_2)$", pad=padding)
+        colorbar_ax.tick_params(pad=padding)
+        self._contour_ax.set_title("Parameter Space")
+        self._init_contour_ax(padding)
+
+        ui_grid_spec = GridSpec(3, 3, figure=ui_subfig, width_ratios=(1, 1, 6), height_ratios=(2, 4, 2), hspace=0.375)
+        self._init_basic_ui(ui_subfig, ui_grid_spec)
+        if self._curve_dimension != 1:
+            self._init_additional_ui(ui_subfig, ui_grid_spec)
+
+        plt.show()
+
+    def saveimg(self, filepath: str, width: float, dpi: float, padding: float):
+        plt.rcParams.update({"font.size": 12, "mathtext.fontset": "cm"})
+        self._fig = plt.figure("PaSpaV")
+
+        self._contour_ax, colorbar_ax = self._fig.subplots(1, 2, width_ratios=(20, 1))
+        self._colorbar = Colorbar(ax=colorbar_ax, mappable=ScalarMappable(), orientation="vertical")
+        self._adjust_all()
+
+        if self._x1_param_samples[-1] == 0.0:
+            raise RuntimeError("The first curve has arc length 0.")
+        elif self._x2_param_samples[-1] == 0.0:
+            raise RuntimeError("The second curve has arc length 0.")
+
+        parameter_space_aspect = self._x2_param_samples[-1] / self._x1_param_samples[-1]
+        self._fig.set_size_inches((width, width * parameter_space_aspect))
+        colorbar_ax.set_box_aspect(17.5 * parameter_space_aspect)
+
+        colorbar_ax.yaxis.set_label_position("left")
+        colorbar_ax.set_ylabel(
+            f"$\mathrm{{height}}_{{ {self._config.get_norm_symbol()} }}(x_1, x_2)$",
+            labelpad=padding
+        )
+        colorbar_ax.tick_params(pad=padding)
+        self._init_contour_ax(padding)
+
+        plt.tight_layout(pad=0.0, w_pad=1.0)
+        plt.savefig(filepath, transparent=True, dpi=dpi, bbox_inches="tight", pad_inches=0.0)
+
+    def _init_contour_ax(self, padding: float):
         self._contour_ax.set_aspect("equal")
         self._contour_ax.set_xlabel("$x_1$")
         self._contour_ax.set_ylabel("$x_2$", rotation="horizontal")
         self._contour_ax.xaxis.set_major_formatter(self._tick_formatter)
         self._contour_ax.yaxis.set_major_formatter(self._tick_formatter)
-        self._contour_ax.grid(which="minor")
-
-        self._contour = None
-        self._colorbar = Colorbar(
-            ax=plot_subfig.add_subplot(plot_grid_spec[1], title="$\mathrm{height}_{\| \cdot \|}(x_1, x_2)$"),
-            mappable=ScalarMappable(),
-            orientation="horizontal"
-        )
-        self._adjust_all()
-
-        self._init_basic_ui(ui_subfig, ui_grid_spec)
-        if self._curve_dimension != 1:
-            self._init_additional_ui(ui_subfig, ui_grid_spec)
+        self._contour_ax.tick_params(pad=padding)
+        self._contour_ax.tick_params(which="minor", color="0.7")
+        self._contour_ax.grid(which="minor", color="0.7")
 
     def _init_basic_ui(self, ui_subfig: SubFigure, ui_grid_spec: GridSpec):
         self._level_slider = Slider(
@@ -228,7 +278,7 @@ class PaSpaV:
 
         self._random_button = Button(
             ax=ui_subfig.add_subplot(buttons_grid_spec[0], title="Curves"),
-            label="Generate Random Curves"
+            label="Generate random curves"
         )
         def generate_random_curves(_):
             self._curve1_vertices = self.random_curve(self._curve1_segments, self._curve_dimension)
@@ -236,7 +286,7 @@ class PaSpaV:
             self._adjust_all()
         self._random_button.on_clicked(generate_random_curves)
 
-        self._save_button = Button(ax=ui_subfig.add_subplot(buttons_grid_spec[1]), label="Save Curves as CSV files")
+        self._save_button = Button(ax=ui_subfig.add_subplot(buttons_grid_spec[1]), label="Save curves as CSV files")
         def save_curves(_):
             for i, curve_vertices in enumerate([self._curve1_vertices, self._curve2_vertices], start=1):
                 filepath = filedialog.asksaveasfilename(filetypes=[("CSV files", "*.csv")], title=f"Save curve {i}")
@@ -334,8 +384,8 @@ class PaSpaV:
             self._x1_param_samples, self._x2_param_samples, self._height_grid,
             self._config.levels, norm=Normalize(height_lb, height_ub), cmap="inferno_r"
         )
-        self._contour_ax.set_xbound(self._x1_param_samples[0], self._x1_param_samples[-1])
-        self._contour_ax.set_ybound(self._x2_param_samples[0], self._x2_param_samples[-1])
+        self._contour_ax.set_xbound(0.0, self._x1_param_samples[-1])
+        self._contour_ax.set_ybound(0.0, self._x2_param_samples[-1])
 
     def _get_height_bounds(self, exp=Decimal("0.1")) -> tuple[float, float]:
         lower_bound = Decimal(np.min(self._height_grid)).quantize(exp, rounding=ROUND_DOWN)
@@ -393,17 +443,43 @@ def random(config: Config, segments: int, dimension: int):
     paspav = PaSpaV(curve1_vertices, curve2_vertices, config)
     paspav.show()
 
-@paspav.command()
-@click.argument("filepath1", type=click.Path(exists=True))
-@click.argument("filepath2", type=click.Path(exists=True))
-@click.pass_obj
-def load(config: Config, filepath1: str, filepath2: str):
+@paspav.group(invoke_without_command=True, subcommand_metavar="[COMMAND [ARGS]...]")
+@click.argument("CURVE1_PATH", type=click.Path(exists=True))
+@click.argument("CURVE2_PATH", type=click.Path(exists=True))
+@click.pass_context
+def load(ctx: click.Context, curve1_path: str, curve2_path: str):
     """Visualise parameter space of polygonal curves loaded from files.
-    The files at FILEPATH1 and FILEPATH2 have to be in CSV format with comma delimiters."""
-    curve1_vertices = PaSpaV.load_curve(filepath1)
-    curve2_vertices = PaSpaV.load_curve(filepath2)
-    paspav = PaSpaV(curve1_vertices, curve2_vertices, config)
-    paspav.show()
+    The files at CURVE1_PATH and CURVE2_PATH need to have CSV format with comma delimiters,
+    where each row specifies coordinates of a curve vertex."""
+    curve1_vertices = PaSpaV.load_curve(curve1_path)
+    curve2_vertices = PaSpaV.load_curve(curve2_path)
+    paspav = PaSpaV(curve1_vertices, curve2_vertices, ctx.obj)
+
+    if ctx.invoked_subcommand is None:
+        paspav.show()
+    else:
+        ctx.obj = paspav
+
+@load.command()
+@click.argument("IMAGE_PATH", type=click.Path())
+@click.option(
+    "--width", "-w", type=click.FloatRange(PaSpaV.MIN_FIGWIDTH, PaSpaV.MAX_FIGWIDTH), default=6.2,
+    help="Width of the image file in inches. Label texts appear larger for smaller image sizes."
+)
+@click.option(
+    "--dpi", "-d", type=click.FloatRange(PaSpaV.MIN_DPI, PaSpaV.MAX_DPI), default=100.0,
+    help="DPI (dots per inch) of the image file. Together with the width, this determines resolution of raster images."
+)
+@click.option(
+    "--padding", "-p", type=click.FloatRange(0.0, PaSpaV.MAX_PADDING), default=5.0,
+    help="Padding for axis labels in points."
+)
+@click.pass_obj
+def saveimg(paspav: PaSpaV, image_path: str, width: float, dpi: float, padding: float):
+    """Save parameter space of loaded polygonal curves as an image file.
+    The file is stored at IMAGE_PATH, which needs to have a format extension supported by Matplotlib.
+    This includes *.eps, *.pdf, *.pgf, *.png and more."""
+    paspav.saveimg(image_path, width, dpi, padding)
 
 if __name__ == "__main__":
     paspav()
