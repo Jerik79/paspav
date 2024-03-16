@@ -364,12 +364,12 @@ class PaSpaV:
         set_ticks([0.0, boundary_values[-1]], minor=False)
         set_ticks(boundary_values[1:-1], minor=True)
 
-        sample_numbers = np.maximum((20 * lengths).astype(int), 20)
+        sample_numbers = 2 * np.maximum((10 * lengths).astype(int), 10)
         def calculate_samples(array: np.ndarray) -> np.ndarray:
             segment_samples = []
             for i in range(1, len(lengths)):
                 segment_samples.append(np.linspace(array[i-1], array[i], sample_numbers[i-1], endpoint=False))
-            segment_samples.append(np.linspace(array[-2], array[-1], sample_numbers[-1], endpoint=True))
+            segment_samples.append(np.linspace(array[-2], array[-1], sample_numbers[-1] + 1, endpoint=True))
             return np.concatenate(segment_samples)
 
         return calculate_samples(vertices), calculate_samples(boundary_values)
@@ -381,7 +381,7 @@ class PaSpaV:
 
         height_lb, height_ub = self._get_height_bounds()
         self._contour = self._contour_ax.contourf(
-            self._x1_param_samples, self._x2_param_samples, self._height_grid,
+            self._x1_param_samples[::2], self._x2_param_samples[::2], self._height_grid[::2, ::2],
             self._config.levels, norm=Normalize(height_lb, height_ub), cmap="inferno_r"
         )
         self._contour_ax.set_xbound(0.0, self._x1_param_samples[-1])
