@@ -117,9 +117,9 @@ class Config:
             case Norm.P_INF:
                 return "\| \cdot \|_{\infty}"
             case Norm.INNER_K_GON:
-                return f"\| \cdot \|_{{ {self.k} \u2010 \mathrm{{gon}} }}^{{\mathrm{{inner}}}}"
+                return f"\| \cdot \|_{{ {self.k} \\text{{-}} \mathrm{{gon}} }}^{{\mathrm{{inner}}}}"
             case Norm.OUTER_K_GON:
-                return f"\| \cdot \|_{{ {self.k} \u2010 \mathrm{{gon}} }}^{{\mathrm{{outer}}}}"
+                return f"\| \cdot \|_{{ {self.k} \\text{{-}} \mathrm{{gon}} }}^{{\mathrm{{outer}}}}"
 
     def apply_norm(self, vectors: np.ndarray) -> np.ndarray:
         match self.norm:
@@ -197,7 +197,7 @@ class PaSpaV:
         self._tick_formatter = FormatStrFormatter("$%.2f$")
 
     def show(self):
-        plt.rcParams.update({"font.size": 14, "mathtext.fontset": "cm"})
+        plt.rcParams.update({"font.size": 14, "mathtext.fontset": "cm", "backend": "TkAgg"})
         self._fig = plt.figure("PaSpaV", figsize=(19.2, 10.8))
 
         plot_subfig, ui_subfig = self._fig.subfigures(1, 2, width_ratios=(2, 1))
@@ -376,8 +376,7 @@ class PaSpaV:
 
     def _adjust_contour_plot(self):
         if self._contour is not None:
-            while self._contour.collections:
-                self._contour.collections.pop().remove()
+            self._contour.remove()
 
         height_lb, height_ub = self._get_height_bounds()
         self._contour = self._contour_ax.contourf(
