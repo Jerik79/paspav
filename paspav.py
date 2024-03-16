@@ -260,18 +260,14 @@ class PaSpaV:
 
     def _init_basic_ui(self, ui_subfig: SubFigure, ui_grid_spec: GridSpec):
         self._level_slider = Slider(
-            ax=ui_subfig.add_subplot(ui_grid_spec[:, 0], title="Levels"),
-            label="",
-            valmin=self.MIN_LEVELS,
-            valmax=self.MAX_LEVELS,
-            valinit=self._config.levels,
-            valstep=1,
-            dragging=False,
-            orientation="vertical"
+            ax=ui_subfig.add_subplot(ui_grid_spec[:, 0], title="Levels"), label="", valfmt="$%d$",
+            valmin=self.MIN_LEVELS, valmax=self.MAX_LEVELS, valinit=self._config.levels, valstep=1,
+            dragging=False, orientation="vertical"
         )
         def update_levels(value: float):
-            self._config.levels = int(value)
-            self._adjust_contour_plot()
+            if self._config.levels != (levels := int(value)):
+                self._config.levels = levels
+                self._adjust_contour_plot()
         self._level_slider.on_changed(update_levels)
 
         buttons_grid_spec = GridSpecFromSubplotSpec(2, 1, subplot_spec=ui_grid_spec[0, 2], hspace=0.25)
@@ -298,19 +294,15 @@ class PaSpaV:
     def _init_additional_ui(self, ui_subfig: SubFigure, ui_grid_spec: GridSpec):
         if self._curve_dimension == 2:
             self._k_slider = Slider(
-                ax=ui_subfig.add_subplot(ui_grid_spec[:, 1], title="$k$"),
-                label="",
-                valmin=self.MIN_K,
-                valmax=self.MAX_K,
-                valinit=self._config.k,
-                valstep=2,
-                dragging=False,
-                orientation="vertical"
+                ax=ui_subfig.add_subplot(ui_grid_spec[:, 1], title="$k$"), label="", valfmt="$%d$",
+                valmin=self.MIN_K, valmax=self.MAX_K, valinit=self._config.k, valstep=2,
+                dragging=False, orientation="vertical"
             )
             def update_k(value: float):
-                self._config.k = int(value)
-                if self._config.norm is Norm.INNER_K_GON or self._config.norm is Norm.OUTER_K_GON:
-                    self._adjust_all()
+                if self._config.k != (k := int(value)):
+                    self._config.k = k
+                    if self._config.norm is Norm.INNER_K_GON or self._config.norm is Norm.OUTER_K_GON:
+                        self._adjust_all()
             self._k_slider.on_changed(update_k)
 
         supported_norms = Norm.supported_enum_values(self._curve_dimension)
@@ -321,8 +313,9 @@ class PaSpaV:
             label_props={"fontsize": ["large"]}
         )
         def update_norm(label: str):
-            self._config.norm = Norm(label)
-            self._adjust_all()
+            if self._config.norm is not (norm := Norm(label)):
+                self._config.norm = norm
+                self._adjust_all()
         self._norm_radio_buttons.on_clicked(update_norm)
 
         self._arc_length_radio_buttons = RadioButtons(
@@ -332,8 +325,10 @@ class PaSpaV:
             label_props={"fontsize": ["large"]}
         )
         def update_arc_lengths(label: str):
-            self._config.euclidean_arc_lengths = label == "Euclidean"
-            self._adjust_all()
+            if self._config.euclidean_arc_lengths != (euclidean_arc_lengths := label == "Euclidean"):
+                self._config.euclidean_arc_lengths = euclidean_arc_lengths
+                if self._config.norm is not Norm.P_2:
+                    self._adjust_all()
         self._arc_length_radio_buttons.on_clicked(update_arc_lengths)
 
     def _adjust_all(self):
