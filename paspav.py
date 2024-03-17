@@ -196,7 +196,7 @@ class PaSpaV:
 
         self._contour = None
         self._tick_formatter = FormatStrFormatter("$%.2f$")
-        plt.rcParams.update({"backend": "TkAgg", "mathtext.fontset": "cm"})
+        plt.rcParams.update({"backend": "TkAgg", "mathtext.fontset": "cm", "pgf.rcfonts": False})
 
     def show(self):
         plt.rcParams.update({"font.size": 14})
