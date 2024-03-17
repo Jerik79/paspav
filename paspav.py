@@ -143,11 +143,12 @@ class PaSpaV:
     MAX_SEGMENTS = 25
     MAX_DIMENSION = 10
 
-    MIN_FIGWIDTH = 2.0
-    MAX_FIGWIDTH = 8.3
-    MIN_DPI = 100.0
-    MAX_DPI = 1000.0
-    MAX_PADDING = 20.0
+    IMG_FONT_SIZE = 12
+    MIN_IMG_WIDTH = 2.0
+    MAX_IMG_WIDTH = 8.3
+    MIN_IMG_DPI = 100.0
+    MAX_IMG_DPI = 1000.0
+    MAX_IMG_LABELPAD = 20.0
 
     @staticmethod
     def random_curve(segments: int, dimension: int) -> np.ndarray:
@@ -208,11 +209,11 @@ class PaSpaV:
         self._colorbar = Colorbar(ax=colorbar_ax, mappable=ScalarMappable(), orientation="horizontal")
         self._adjust_all()
 
-        padding = 10.0
-        colorbar_ax.set_title("$\mathrm{height}_{\| \cdot \|}(x_1, x_2)$", pad=padding)
-        colorbar_ax.tick_params(pad=padding)
+        labelpad = 10.0
+        colorbar_ax.set_title("$\mathrm{height}_{\| \cdot \|}(x_1, x_2)$", pad=labelpad)
+        colorbar_ax.tick_params(pad=labelpad)
         self._contour_ax.set_title("Parameter Space")
-        self._init_contour_ax(padding)
+        self._init_contour_ax(labelpad)
 
         ui_grid_spec = GridSpec(3, 3, figure=ui_subfig, width_ratios=(1, 1, 6), height_ratios=(2, 4, 2), hspace=0.375)
         self._init_basic_ui(ui_subfig, ui_grid_spec)
@@ -221,8 +222,8 @@ class PaSpaV:
 
         plt.show()
 
-    def saveimg(self, filepath: str, width: float, dpi: float, padding: float):
-        plt.rcParams.update({"font.size": 12})
+    def saveimg(self, filepath: str, width: float, dpi: float, labelpad: float):
+        plt.rcParams.update({"font.size": self.IMG_FONT_SIZE})
         self._fig = plt.figure("PaSpaV")
 
         self._contour_ax, colorbar_ax = self._fig.subplots(1, 2, width_ratios=(20, 1))
@@ -241,22 +242,22 @@ class PaSpaV:
         colorbar_ax.yaxis.set_label_position("left")
         colorbar_ax.set_ylabel(
             f"$\mathrm{{height}}_{{ {self._config.get_norm_symbol()} }}(x_1, x_2)$",
-            labelpad=padding
+            labelpad=labelpad
         )
-        colorbar_ax.tick_params(pad=padding)
-        self._init_contour_ax(padding)
+        colorbar_ax.tick_params(pad=labelpad)
+        self._init_contour_ax(labelpad)
 
         plt.tight_layout(pad=0.0, w_pad=1.0)
         plt.savefig(filepath, transparent=True, dpi=dpi, bbox_inches="tight", pad_inches=0.0)
         plt.close()
 
-    def _init_contour_ax(self, padding: float):
+    def _init_contour_ax(self, labelpad: float):
         self._contour_ax.set_aspect("equal")
-        self._contour_ax.set_xlabel("$x_1$")
-        self._contour_ax.set_ylabel("$x_2$", rotation="horizontal")
+        self._contour_ax.set_xlabel("$x_1$", labelpad=labelpad)
+        self._contour_ax.set_ylabel("$x_2$", labelpad=labelpad, rotation="horizontal")
         self._contour_ax.xaxis.set_major_formatter(self._tick_formatter)
         self._contour_ax.yaxis.set_major_formatter(self._tick_formatter)
-        self._contour_ax.tick_params(pad=padding)
+        self._contour_ax.tick_params(pad=labelpad)
         self._contour_ax.tick_params(which="minor", color="0.7")
         self._contour_ax.grid(which="minor", color="0.7")
 
@@ -401,12 +402,12 @@ class PaSpaV:
 )
 @click.option(
     "--approach", "-a", type=click.Choice([approach.name for approach in ComputationApproach], case_sensitive=False),
-    default=ComputationApproach.LT.name, help="Approach used to compute polygonal norms (k-gon-norms). " \
-    "The supported approaches are based on linear transformations and on explicit or implicit projections."
+    default=ComputationApproach.LT.name, help="""Approach used to compute polygonal norms (k-gon-norms).
+    The supported approaches are based on linear transformations and on explicit or implicit projections."""
 )
 @click.option(
     "-k", type=click.IntRange(PaSpaV.MIN_K, PaSpaV.MAX_K), default=10,
-    help="Number of vertices for polygonal norms (k-gon-norms)."
+    help="Number of sides for polygonal norms (k-gon-norms)."
 )
 @click.option(
     "--levels", "-l", type=click.IntRange(PaSpaV.MIN_LEVELS, PaSpaV.MAX_LEVELS), default=50,
@@ -414,8 +415,8 @@ class PaSpaV:
 )
 @click.option(
     "--euclidean-arc-lengths/--no-euclidean-arc-lengths", "-e/-ne", default=False,
-    help="If true, arc lengths are always measured using the Euclidean 2-norm. " \
-    "If false, they depend on the norm that is used for height calculations."
+    help="""If true, arc lengths are always measured using the Euclidean 2-norm.
+    If false, they depend on the norm that is used for height calculations."""
 )
 @click.pass_context
 def paspav(ctx: click.Context, norm: str, approach: str, k: int, levels: int, euclidean_arc_lengths: bool):
@@ -459,23 +460,24 @@ def load(ctx: click.Context, curve1_path: str, curve2_path: str):
 @load.command()
 @click.argument("IMAGE_PATH", type=click.Path())
 @click.option(
-    "--width", "-w", type=click.FloatRange(PaSpaV.MIN_FIGWIDTH, PaSpaV.MAX_FIGWIDTH), default=6.2,
-    help="Width of the image file in inches. Label texts appear larger for smaller image sizes."
+    "--width", "-w", type=click.FloatRange(PaSpaV.MIN_IMG_WIDTH, PaSpaV.MAX_IMG_WIDTH), default=6.2,
+    help=f"""Width of the image file in inches. For smaller image widths, label texts appear larger in
+    comparison to graphical elements because the font size is fixed to {PaSpaV.IMG_FONT_SIZE} points."""
 )
 @click.option(
-    "--dpi", "-d", type=click.FloatRange(PaSpaV.MIN_DPI, PaSpaV.MAX_DPI), default=100.0,
+    "--dpi", "-d", type=click.FloatRange(PaSpaV.MIN_IMG_DPI, PaSpaV.MAX_IMG_DPI), default=100.0,
     help="DPI (dots per inch) of the image file. Together with the width, this determines resolution of raster images."
 )
 @click.option(
-    "--padding", "-p", type=click.FloatRange(0.0, PaSpaV.MAX_PADDING), default=5.0,
-    help="Padding for axis labels in points."
+    "--labelpad", "-l", type=click.FloatRange(0.0, PaSpaV.MAX_IMG_LABELPAD), default=6.5,
+    help="Padding for label texts in points."
 )
 @click.pass_obj
-def saveimg(paspav: PaSpaV, image_path: str, width: float, dpi: float, padding: float):
+def saveimg(paspav: PaSpaV, image_path: str, width: float, dpi: float, labelpad: float):
     """Save parameter space of loaded polygonal curves as an image file.
     The file is stored at IMAGE_PATH, which needs to have a format extension supported by Matplotlib.
     This includes *.eps, *.pdf, *.pgf, *.png and more."""
-    paspav.saveimg(image_path, width, dpi, padding)
+    paspav.saveimg(image_path, width, dpi, labelpad)
 
 if __name__ == "__main__":
     paspav()
