@@ -195,9 +195,10 @@ class PaSpaV:
 
         self._contour = None
         self._tick_formatter = FormatStrFormatter("$%.2f$")
+        plt.rcParams.update({"backend": "TkAgg", "mathtext.fontset": "cm"})
 
     def show(self):
-        plt.rcParams.update({"font.size": 14, "mathtext.fontset": "cm", "backend": "TkAgg"})
+        plt.rcParams.update({"font.size": 14})
         self._fig = plt.figure("PaSpaV", figsize=(19.2, 10.8))
 
         plot_subfig, ui_subfig = self._fig.subfigures(1, 2, width_ratios=(2, 1))
@@ -221,7 +222,7 @@ class PaSpaV:
         plt.show()
 
     def saveimg(self, filepath: str, width: float, dpi: float, padding: float):
-        plt.rcParams.update({"font.size": 12, "mathtext.fontset": "cm"})
+        plt.rcParams.update({"font.size": 12})
         self._fig = plt.figure("PaSpaV")
 
         self._contour_ax, colorbar_ax = self._fig.subplots(1, 2, width_ratios=(20, 1))
@@ -247,6 +248,7 @@ class PaSpaV:
 
         plt.tight_layout(pad=0.0, w_pad=1.0)
         plt.savefig(filepath, transparent=True, dpi=dpi, bbox_inches="tight", pad_inches=0.0)
+        plt.close()
 
     def _init_contour_ax(self, padding: float):
         self._contour_ax.set_aspect("equal")
