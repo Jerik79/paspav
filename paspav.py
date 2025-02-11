@@ -28,7 +28,7 @@ class Norm(StrEnum):
     INNER_K_GON = "Inner $k$-gon-norm"
     P_2 = "$2$-norm"
     OUTER_K_GON = "Outer $k$-gon-norm"
-    P_INF = "$\infty$-norm"
+    P_INF = r"$\infty$-norm"
 
     @classmethod
     def supported_enum_values(cls, dimension: int) -> list[str]:
@@ -111,15 +111,15 @@ class Config:
     def get_norm_symbol(self) -> str:
         match self.norm:
             case Norm.P_1:
-                return "\| \cdot \|_{1}"
+                return r"\| \cdot \|_{1}"
             case Norm.P_2:
-                return "\| \cdot \|_{2}"
+                return r"\| \cdot \|_{2}"
             case Norm.P_INF:
-                return "\| \cdot \|_{\infty}"
+                return r"\| \cdot \|_{\infty}"
             case Norm.INNER_K_GON:
-                return f"\| \cdot \|_{{ {self.k} \\text{{-}} \mathrm{{gon}} }}^{{\mathrm{{inner}}}}"
+                return rf"\| \cdot \|_{{ {self.k} \text{{-}} \mathrm{{gon}} }}^{{\mathrm{{inner}}}}"
             case Norm.OUTER_K_GON:
-                return f"\| \cdot \|_{{ {self.k} \\text{{-}} \mathrm{{gon}} }}^{{\mathrm{{outer}}}}"
+                return rf"\| \cdot \|_{{ {self.k} \text{{-}} \mathrm{{gon}} }}^{{\mathrm{{outer}}}}"
 
     def apply_norm(self, vectors: np.ndarray) -> np.ndarray:
         match self.norm:
@@ -210,7 +210,7 @@ class PaSpaV:
         self._adjust_all()
 
         labelpad = 10.0
-        colorbar_ax.set_title("$\mathrm{height}_{\| \cdot \|}(x_1, x_2)$", pad=labelpad)
+        colorbar_ax.set_title(r"$\mathrm{height}_{\| \cdot \|}(x_1, x_2)$", pad=labelpad)
         colorbar_ax.tick_params(pad=labelpad)
         self._contour_ax.set_title("Parameter Space")
         self._init_contour_ax(labelpad)
@@ -241,7 +241,7 @@ class PaSpaV:
 
         colorbar_ax.yaxis.set_label_position("left")
         colorbar_ax.set_ylabel(
-            f"$\mathrm{{height}}_{{ {self._config.get_norm_symbol()} }}(x_1, x_2)$",
+            rf"$\mathrm{{height}}_{{ {self._config.get_norm_symbol()} }}(x_1, x_2)$",
             labelpad=labelpad
         )
         colorbar_ax.tick_params(pad=labelpad)
@@ -310,7 +310,7 @@ class PaSpaV:
 
         supported_norms = Norm.supported_enum_values(self._curve_dimension)
         self._norm_radio_buttons = RadioButtons(
-            ax=ui_subfig.add_subplot(ui_grid_spec[1, 2], title="Norm $\| \cdot \|$"),
+            ax=ui_subfig.add_subplot(ui_grid_spec[1, 2], title=r"Norm $\| \cdot \|$"),
             labels=supported_norms,
             active=supported_norms.index(self._config.norm.value),
             label_props={"fontsize": ["large"]}
