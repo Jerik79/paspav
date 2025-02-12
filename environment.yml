@@ -2,7 +2,7 @@ name: paspav
 channels:
   - conda-forge
 dependencies:
-  - python=3.11
-  - numpy=1.26
-  - matplotlib=3.8
+  - python=3.13
+  - numpy=2.2
+  - matplotlib=3.10
   - click=8.1
