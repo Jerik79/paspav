@@ -254,7 +254,7 @@ class PaSpaV:
     def _init_contour_ax(self, labelpad: float):
         self._contour_ax.set_aspect("equal")
         self._contour_ax.set_xlabel("$x_1$", labelpad=labelpad)
-        self._contour_ax.set_ylabel("$x_2$", labelpad=labelpad, rotation="horizontal")
+        self._contour_ax.set_ylabel("$x_2$", labelpad=labelpad, rotation="horizontal", ha="right", va="center_baseline")
         self._contour_ax.xaxis.set_major_formatter(self._tick_formatter)
         self._contour_ax.yaxis.set_major_formatter(self._tick_formatter)
         self._contour_ax.tick_params(pad=labelpad)
