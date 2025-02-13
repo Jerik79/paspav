@@ -14,7 +14,7 @@ from matplotlib.colors import Normalize
 from matplotlib.figure import SubFigure
 from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 from matplotlib.ticker import FormatStrFormatter, LinearLocator
-from matplotlib.widgets import Button, RadioButtons, Slider
+from matplotlib.widgets import Button, CheckButtons, RadioButtons, Slider
 
 
 class ComputationApproach(StrEnum):
@@ -106,6 +106,7 @@ class Config:
     approach: ComputationApproach
     k: int
     levels: int
+    post_office_metric: bool
     euclidean_arc_lengths: bool
 
     def get_norm_symbol(self) -> str:
@@ -311,9 +312,8 @@ class PaSpaV:
         supported_norms = Norm.supported_enum_values(self._curve_dimension)
         self._norm_radio_buttons = RadioButtons(
             ax=ui_subfig.add_subplot(ui_grid_spec[1, 2], title=r"Norm $\| \cdot \|$"),
-            labels=supported_norms,
-            active=supported_norms.index(self._config.norm.value),
-            label_props={"fontsize": ["large"]}
+            labels=supported_norms, label_props={"fontsize": ["large"]},
+            active=supported_norms.index(self._config.norm.value)
         )
         def update_norm(label: str):
             if self._config.norm is not (norm := Norm(label)):
@@ -321,18 +321,20 @@ class PaSpaV:
                 self._adjust_all()
         self._norm_radio_buttons.on_clicked(update_norm)
 
-        self._arc_length_radio_buttons = RadioButtons(
-            ax=ui_subfig.add_subplot(ui_grid_spec[2, 2], title="Arc Lengths"),
-            labels=["Norm-dependent", "Euclidean"],
-            active=int(self._config.euclidean_arc_lengths),
-            label_props={"fontsize": ["large"]}
+        self._variants_check_buttons = CheckButtons(
+            ax=ui_subfig.add_subplot(ui_grid_spec[2, 2], title="Variants"),
+            labels=["Post Office Metric", "Euclidean Arc Lengths"],
+            actives=[self._config.post_office_metric, self._config.euclidean_arc_lengths]
         )
-        def update_arc_lengths(label: str):
-            if self._config.euclidean_arc_lengths != (euclidean_arc_lengths := label == "Euclidean"):
-                self._config.euclidean_arc_lengths = euclidean_arc_lengths
+        def update_variants(label: str):
+            if label == "Post Office Metric":
+                self._config.post_office_metric = not self._config.post_office_metric
+                self._adjust_all()
+            elif label == "Euclidean Arc Lengths":
+                self._config.euclidean_arc_lengths = not self._config.euclidean_arc_lengths
                 if self._config.norm is not Norm.P_2:
                     self._adjust_all()
-        self._arc_length_radio_buttons.on_clicked(update_arc_lengths)
+        self._variants_check_buttons.on_clicked(update_variants)
 
     def _adjust_all(self):
         self._adjust_height_grid_and_ticks()
@@ -347,8 +349,12 @@ class PaSpaV:
         curve2_samples, self._x2_param_samples = self._sample_curve_and_set_ticks(
             self._curve2_vertices, self._contour_ax.set_yticks
         )
-        difference_vector_grid = curve1_samples - curve2_samples[:, np.newaxis]
-        self._height_grid = self._config.apply_norm(difference_vector_grid)
+        curve2_samples = curve2_samples[:, np.newaxis]
+
+        if self._config.post_office_metric:
+            self._height_grid = self._config.apply_norm(curve1_samples) + self._config.apply_norm(curve2_samples)
+        else:
+            self._height_grid = self._config.apply_norm(curve1_samples - curve2_samples)
 
     def _sample_curve_and_set_ticks(self, vertices: np.ndarray, set_ticks: Callable) -> tuple[np.ndarray, np.ndarray]:
         difference_vectors = np.diff(vertices, axis=0)
@@ -414,14 +420,26 @@ class PaSpaV:
     help="Number of levels for contour plot drawings."
 )
 @click.option(
+    "--post-office-metric/--no-post-office-metric", "-p/-np", default=False,
+    help="""If true, height values are calculated using a post office metric that is based on the norm.
+    If false, height values are calculated using the metric that is induced by the norm as usual."""
+)
+@click.option(
     "--euclidean-arc-lengths/--no-euclidean-arc-lengths", "-e/-ne", default=False,
     help="""If true, arc lengths are always measured using the Euclidean 2-norm.
     If false, they depend on the norm that is used for height calculations."""
 )
 @click.pass_context
-def paspav(ctx: click.Context, norm: str, approach: str, k: int, levels: int, euclidean_arc_lengths: bool):
+def paspav(
+    ctx: click.Context,
+    norm: str, approach: str, k: int, levels: int,
+    post_office_metric: bool, euclidean_arc_lengths: bool
+):
     """PaSpaV: Parameter Space Visualiser for polygonal curves."""
-    ctx.obj = Config(Norm[norm], ComputationApproach[approach], k, levels, euclidean_arc_lengths)
+    ctx.obj = Config(
+        Norm[norm], ComputationApproach[approach], k, levels,
+        post_office_metric, euclidean_arc_lengths
+    )
 
 @paspav.command()
 @click.option(
