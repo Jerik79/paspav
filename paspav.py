@@ -218,8 +218,7 @@ class PaSpaV:
 
         ui_grid_spec = GridSpec(3, 3, figure=ui_subfig, width_ratios=(1, 1, 6), height_ratios=(2, 4, 2), hspace=0.375)
         self._init_basic_ui(ui_subfig, ui_grid_spec)
-        if self._curve_dimension != 1:
-            self._init_additional_ui(ui_subfig, ui_grid_spec)
+        self._init_additional_ui(ui_subfig, ui_grid_spec)
 
         plt.show()
 
@@ -255,7 +254,10 @@ class PaSpaV:
     def _init_contour_ax(self, labelpad: float):
         self._contour_ax.set_aspect("equal")
         self._contour_ax.set_xlabel("$x_1$", labelpad=labelpad)
-        self._contour_ax.set_ylabel("$x_2$", labelpad=labelpad, rotation="horizontal", ha="right", va="center_baseline")
+        self._contour_ax.set_ylabel(
+            "$x_2$", labelpad=labelpad, rotation="horizontal",
+            horizontalalignment="right", verticalalignment="center_baseline"
+        )
         self._contour_ax.xaxis.set_major_formatter(self._tick_formatter)
         self._contour_ax.yaxis.set_major_formatter(self._tick_formatter)
         self._contour_ax.tick_params(pad=labelpad)
